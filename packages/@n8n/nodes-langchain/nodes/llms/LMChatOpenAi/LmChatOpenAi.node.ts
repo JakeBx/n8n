@@ -108,11 +108,6 @@ export class LmChatOpenAi implements INodeType {
 				name: 'openAiApi',
 				required: true,
 			},
-			{
-				// eslint-disable-next-line n8n-nodes-base/node-class-description-credentials-name-unsuffixed
-				name: 'openAiSslAuth',
-				required: false,
-			},
 		],
 		requestDefaults: {
 			ignoreHttpStatusErrors: true,
@@ -737,13 +732,6 @@ export class LmChatOpenAi implements INodeType {
 					},
 				],
 			},
-			{
-				displayName: 'SSL Certificates',
-				name: 'provideSslCertificates',
-				type: 'boolean',
-				default: false,
-				isNodeSetting: true,
-			},
 		],
 	};
 
@@ -753,28 +741,26 @@ export class LmChatOpenAi implements INodeType {
 		let tlsCredentials:
 			| { ca?: string; cert?: string; key?: string; passphrase?: string }
 			| undefined;
-		const provideSslCertificates = this.getNodeParameter(
-			'provideSslCertificates',
-			itemIndex,
-			false,
-		);
-		if (provideSslCertificates) {
-			try {
-				const raw = await this.getCredentials('openAiSslAuth');
-				if (raw.cert || raw.key || raw.ca) {
-					tlsCredentials = {
-						ca: typeof raw.ca === 'string' && raw.ca ? normalizePem(raw.ca) : undefined,
-						cert: typeof raw.cert === 'string' && raw.cert ? normalizePem(raw.cert) : undefined,
-						key: typeof raw.key === 'string' && raw.key ? normalizePem(raw.key) : undefined,
-						passphrase:
-							typeof raw.passphrase === 'string' && raw.passphrase ? raw.passphrase : undefined,
-					};
-				}
-			} catch (error) {
-				const msg = error instanceof Error ? error.message : String(error);
-				if (!msg.includes('not found') && !msg.includes('not require')) {
-					this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
-				}
+		if (credentials.sslCertificatesEnabled) {
+			if (credentials.cert || credentials.key || credentials.ca) {
+				tlsCredentials = {
+					ca:
+						typeof credentials.ca === 'string' && credentials.ca
+							? normalizePem(credentials.ca)
+							: undefined,
+					cert:
+						typeof credentials.cert === 'string' && credentials.cert
+							? normalizePem(credentials.cert)
+							: undefined,
+					key:
+						typeof credentials.key === 'string' && credentials.key
+							? normalizePem(credentials.key)
+							: undefined,
+					passphrase:
+						typeof credentials.passphrase === 'string' && credentials.passphrase
+							? credentials.passphrase
+							: undefined,
+				};
 			}
 		}
 

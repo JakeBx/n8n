@@ -157,7 +157,7 @@ describe('EmbeddingsOpenAi', () => {
 			);
 		});
 
-		it('should pass TLS options to getProxyAgent when openAiSslAuth credential is configured', async () => {
+		it('should pass TLS options to getProxyAgent when TLS is configured in openAiApi credential', async () => {
 			const mockContext = setupMockContext();
 			const tlsCreds = {
 				ca: '-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----',
@@ -166,16 +166,15 @@ describe('EmbeddingsOpenAi', () => {
 				passphrase: 'secret',
 			};
 
-			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
-				if (credType === 'openAiApi') return { apiKey: 'test-api-key' };
-				if (credType === 'openAiSslAuth') return tlsCreds;
-				throw new Error(`Unknown credential type: ${credType}`);
+			mockContext.getCredentials = jest.fn().mockResolvedValue({
+				apiKey: 'test-api-key',
+				sslCertificatesEnabled: true,
+				...tlsCreds,
 			});
 
 			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
 				if (paramName === 'model') return 'text-embedding-3-small';
 				if (paramName === 'options') return {};
-				if (paramName === 'provideSslCertificates') return true;
 				return undefined;
 			});
 
@@ -193,23 +192,19 @@ describe('EmbeddingsOpenAi', () => {
 			);
 		});
 
-		it('should use empty string apiKey when openAiApi apiKey is empty and TLS is configured', async () => {
+		it('should use empty string apiKey when apiKey is empty and TLS is configured', async () => {
 			const mockContext = setupMockContext();
 
-			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
-				if (credType === 'openAiApi') return { apiKey: '' };
-				if (credType === 'openAiSslAuth')
-					return {
-						cert: '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----',
-						key: '-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----',
-					};
-				throw new Error(`Unknown credential type: ${credType}`);
+			mockContext.getCredentials = jest.fn().mockResolvedValue({
+				apiKey: '',
+				sslCertificatesEnabled: true,
+				cert: '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----',
+				key: '-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----',
 			});
 
 			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
 				if (paramName === 'model') return 'text-embedding-3-small';
 				if (paramName === 'options') return {};
-				if (paramName === 'provideSslCertificates') return true;
 				return undefined;
 			});
 
@@ -218,18 +213,17 @@ describe('EmbeddingsOpenAi', () => {
 			expect(MockedOpenAIEmbeddings).toHaveBeenCalledWith(expect.objectContaining({ apiKey: '' }));
 		});
 
-		it('should not pass TLS options to getProxyAgent when provideSslCertificates is false', async () => {
+		it('should not pass TLS options to getProxyAgent when sslCertificatesEnabled is false', async () => {
 			const mockContext = setupMockContext();
 
-			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
-				if (credType === 'openAiApi') return { apiKey: 'test-api-key' };
-				throw new Error(`Unknown credential type: ${credType}`);
+			mockContext.getCredentials = jest.fn().mockResolvedValue({
+				apiKey: 'test-api-key',
+				sslCertificatesEnabled: false,
 			});
 
 			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
 				if (paramName === 'model') return 'text-embedding-3-small';
 				if (paramName === 'options') return {};
-				if (paramName === 'provideSslCertificates') return false;
 				return undefined;
 			});
 

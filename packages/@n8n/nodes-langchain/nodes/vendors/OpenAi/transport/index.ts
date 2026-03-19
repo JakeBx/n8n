@@ -65,36 +65,27 @@ export async function apiRequest(
 		json: true,
 	};
 
-	// Apply TLS client certificates when configured
-	const provideSslCertificates = this.getNodeParameter('provideSslCertificates', 0, false);
-	if (provideSslCertificates) {
-		try {
-			const sslCredentials = await this.getCredentials('openAiSslAuth');
-			if (sslCredentials.cert || sslCredentials.key || sslCredentials.ca) {
-				options.agentOptions = {
-					ca:
-						typeof sslCredentials.ca === 'string' && sslCredentials.ca
-							? normalizePem(sslCredentials.ca)
-							: undefined,
-					cert:
-						typeof sslCredentials.cert === 'string' && sslCredentials.cert
-							? normalizePem(sslCredentials.cert)
-							: undefined,
-					key:
-						typeof sslCredentials.key === 'string' && sslCredentials.key
-							? normalizePem(sslCredentials.key)
-							: undefined,
-					passphrase:
-						typeof sslCredentials.passphrase === 'string' && sslCredentials.passphrase
-							? sslCredentials.passphrase
-							: undefined,
-				};
-			}
-		} catch (error) {
-			const msg = error instanceof Error ? error.message : String(error);
-			if (!msg.includes('not found') && !msg.includes('not require')) {
-				this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
-			}
+	// Apply TLS client certificates when configured in the OpenAi credential
+	if (credentials.sslCertificatesEnabled) {
+		if (credentials.cert || credentials.key || credentials.ca) {
+			options.agentOptions = {
+				ca:
+					typeof credentials.ca === 'string' && credentials.ca
+						? normalizePem(credentials.ca)
+						: undefined,
+				cert:
+					typeof credentials.cert === 'string' && credentials.cert
+						? normalizePem(credentials.cert)
+						: undefined,
+				key:
+					typeof credentials.key === 'string' && credentials.key
+						? normalizePem(credentials.key)
+						: undefined,
+				passphrase:
+					typeof credentials.passphrase === 'string' && credentials.passphrase
+						? credentials.passphrase
+						: undefined,
+			};
 		}
 	}
 

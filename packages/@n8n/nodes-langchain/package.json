@@ -62,7 +62,6 @@
       "dist/credentials/MistralCloudApi.credentials.js",
       "dist/credentials/LemonadeApi.credentials.js",
       "dist/credentials/OllamaApi.credentials.js",
-      "dist/credentials/OpenAiSslAuth.credentials.js",
       "dist/credentials/OpenRouterApi.credentials.js",
       "dist/credentials/PineconeApi.credentials.js",
       "dist/credentials/QdrantApi.credentials.js",

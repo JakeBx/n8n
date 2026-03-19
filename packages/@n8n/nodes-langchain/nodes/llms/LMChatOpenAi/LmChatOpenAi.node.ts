@@ -761,11 +761,6 @@ export class LmChatOpenAi implements INodeType {
 		if (provideSslCertificates) {
 			try {
 				const raw = await this.getCredentials('openAiSslAuth');
-				this.logger.warn('[mTLS debug] openAiSslAuth fetched', {
-					hasCA: !!raw.ca,
-					hasCert: !!raw.cert,
-					hasKey: !!raw.key,
-				});
 				if (raw.cert || raw.key || raw.ca) {
 					tlsCredentials = {
 						ca: typeof raw.ca === 'string' && raw.ca ? normalizePem(raw.ca) : undefined,
@@ -774,22 +769,13 @@ export class LmChatOpenAi implements INodeType {
 						passphrase:
 							typeof raw.passphrase === 'string' && raw.passphrase ? raw.passphrase : undefined,
 					};
-					const caSnip = tlsCredentials.ca?.substring(0, 80).replace(/\n/g, '\\n') ?? 'none';
-					const certSnip = tlsCredentials.cert?.substring(0, 80).replace(/\n/g, '\\n') ?? 'none';
-					const keySnip = tlsCredentials.key?.substring(0, 80).replace(/\n/g, '\\n') ?? 'none';
-					this.logger.warn(`[mTLS debug] ca=${caSnip}`);
-					this.logger.warn(`[mTLS debug] cert=${certSnip}`);
-					this.logger.warn(`[mTLS debug] key=${keySnip}`);
 				}
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : String(error);
-				this.logger.warn('[mTLS debug] getCredentials error', { error: msg });
 				if (!msg.includes('not found') && !msg.includes('not require')) {
 					this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
 				}
 			}
-		} else {
-			this.logger.warn('[mTLS debug] provideSslCertificates is false');
 		}
 
 		const version = this.getNode().typeVersion;
@@ -825,22 +811,6 @@ export class LmChatOpenAi implements INodeType {
 			},
 			tlsOptions,
 		);
-		this.logger.warn(
-			`[mTLS debug] dispatcher type=${dispatcher?.constructor?.name ?? 'undefined'} baseURL=${configuration.baseURL ?? 'undefined'}`,
-		);
-		if (dispatcher && configuration.baseURL) {
-			try {
-				const { fetch: undiciFetch } = await import('undici');
-				const testUrl = configuration.baseURL.replace(/\/v1\/?$/, '/api/tags');
-				const testRes = await (undiciFetch as Function)(testUrl, { dispatcher });
-				this.logger.warn(`[mTLS debug] test fetch status=${testRes.status}`);
-			} catch (e) {
-				const cause = e instanceof Error && (e as NodeJS.ErrnoException).cause;
-				this.logger.warn(
-					`[mTLS debug] test fetch error=${e instanceof Error ? e.message : String(e)} cause=${cause instanceof Error ? cause.message : String(cause)}`,
-				);
-			}
-		}
 		configuration.fetchOptions = {
 			dispatcher,
 		};

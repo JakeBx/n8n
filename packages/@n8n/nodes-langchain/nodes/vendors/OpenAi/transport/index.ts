@@ -66,32 +66,35 @@ export async function apiRequest(
 	};
 
 	// Apply TLS client certificates when configured
-	try {
-		const sslCredentials = await this.getCredentials('openAiSslAuth');
-		if (sslCredentials.cert || sslCredentials.key || sslCredentials.ca) {
-			options.agentOptions = {
-				ca:
-					typeof sslCredentials.ca === 'string' && sslCredentials.ca
-						? normalizePem(sslCredentials.ca)
-						: undefined,
-				cert:
-					typeof sslCredentials.cert === 'string' && sslCredentials.cert
-						? normalizePem(sslCredentials.cert)
-						: undefined,
-				key:
-					typeof sslCredentials.key === 'string' && sslCredentials.key
-						? normalizePem(sslCredentials.key)
-						: undefined,
-				passphrase:
-					typeof sslCredentials.passphrase === 'string' && sslCredentials.passphrase
-						? sslCredentials.passphrase
-						: undefined,
-			};
-		}
-	} catch (error) {
-		const msg = error instanceof Error ? error.message : String(error);
-		if (!msg.includes('not found') && !msg.includes('not require')) {
-			this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
+	const provideSslCertificates = this.getNodeParameter('provideSslCertificates', 0, false);
+	if (provideSslCertificates) {
+		try {
+			const sslCredentials = await this.getCredentials('openAiSslAuth');
+			if (sslCredentials.cert || sslCredentials.key || sslCredentials.ca) {
+				options.agentOptions = {
+					ca:
+						typeof sslCredentials.ca === 'string' && sslCredentials.ca
+							? normalizePem(sslCredentials.ca)
+							: undefined,
+					cert:
+						typeof sslCredentials.cert === 'string' && sslCredentials.cert
+							? normalizePem(sslCredentials.cert)
+							: undefined,
+					key:
+						typeof sslCredentials.key === 'string' && sslCredentials.key
+							? normalizePem(sslCredentials.key)
+							: undefined,
+					passphrase:
+						typeof sslCredentials.passphrase === 'string' && sslCredentials.passphrase
+							? sslCredentials.passphrase
+							: undefined,
+				};
+			}
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			if (!msg.includes('not found') && !msg.includes('not require')) {
+				this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
+			}
 		}
 	}
 

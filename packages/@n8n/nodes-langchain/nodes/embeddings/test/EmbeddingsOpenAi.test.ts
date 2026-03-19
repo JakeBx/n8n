@@ -175,6 +175,7 @@ describe('EmbeddingsOpenAi', () => {
 			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
 				if (paramName === 'model') return 'text-embedding-3-small';
 				if (paramName === 'options') return {};
+				if (paramName === 'provideSslCertificates') return true;
 				return undefined;
 			});
 
@@ -192,7 +193,7 @@ describe('EmbeddingsOpenAi', () => {
 			);
 		});
 
-		it('should use placeholder apiKey when openAiApi apiKey is empty and TLS is configured', async () => {
+		it('should use empty string apiKey when openAiApi apiKey is empty and TLS is configured', async () => {
 			const mockContext = setupMockContext();
 
 			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
@@ -208,31 +209,27 @@ describe('EmbeddingsOpenAi', () => {
 			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
 				if (paramName === 'model') return 'text-embedding-3-small';
 				if (paramName === 'options') return {};
+				if (paramName === 'provideSslCertificates') return true;
 				return undefined;
 			});
 
 			await embeddingsOpenAi.supplyData.call(mockContext, 0);
 
-			expect(MockedOpenAIEmbeddings).toHaveBeenCalledWith(
-				expect.objectContaining({ apiKey: 'n8n-mtls' }),
-			);
+			expect(MockedOpenAIEmbeddings).toHaveBeenCalledWith(expect.objectContaining({ apiKey: '' }));
 		});
 
-		it('should not pass TLS options to getProxyAgent when openAiSslAuth credential is not configured', async () => {
+		it('should not pass TLS options to getProxyAgent when provideSslCertificates is false', async () => {
 			const mockContext = setupMockContext();
 
 			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
 				if (credType === 'openAiApi') return { apiKey: 'test-api-key' };
-				throw new Error(
-					credType === 'openAiSslAuth'
-						? 'Credential not found'
-						: `Unknown credential type: ${credType}`,
-				);
+				throw new Error(`Unknown credential type: ${credType}`);
 			});
 
 			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
 				if (paramName === 'model') return 'text-embedding-3-small';
 				if (paramName === 'options') return {};
+				if (paramName === 'provideSslCertificates') return false;
 				return undefined;
 			});
 

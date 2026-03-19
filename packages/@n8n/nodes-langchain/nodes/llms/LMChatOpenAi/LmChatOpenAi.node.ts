@@ -111,7 +111,12 @@ export class LmChatOpenAi implements INodeType {
 			{
 				// eslint-disable-next-line n8n-nodes-base/node-class-description-credentials-name-unsuffixed
 				name: 'openAiSslAuth',
-				required: false,
+				required: true,
+				displayOptions: {
+					show: {
+						provideSslCertificates: [true],
+					},
+				},
 			},
 		],
 		requestDefaults: {
@@ -737,6 +742,13 @@ export class LmChatOpenAi implements INodeType {
 					},
 				],
 			},
+			{
+				displayName: 'SSL Certificates',
+				name: 'provideSslCertificates',
+				type: 'boolean',
+				default: false,
+				isNodeSetting: true,
+			},
 		],
 	};
 
@@ -746,21 +758,28 @@ export class LmChatOpenAi implements INodeType {
 		let tlsCredentials:
 			| { ca?: string; cert?: string; key?: string; passphrase?: string }
 			| undefined;
-		try {
-			const raw = await this.getCredentials('openAiSslAuth');
-			if (raw.cert || raw.key || raw.ca) {
-				tlsCredentials = {
-					ca: typeof raw.ca === 'string' && raw.ca ? normalizePem(raw.ca) : undefined,
-					cert: typeof raw.cert === 'string' && raw.cert ? normalizePem(raw.cert) : undefined,
-					key: typeof raw.key === 'string' && raw.key ? normalizePem(raw.key) : undefined,
-					passphrase:
-						typeof raw.passphrase === 'string' && raw.passphrase ? raw.passphrase : undefined,
-				};
-			}
-		} catch (error) {
-			const msg = error instanceof Error ? error.message : String(error);
-			if (!msg.includes('not found') && !msg.includes('not require')) {
-				this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
+		const provideSslCertificates = this.getNodeParameter(
+			'provideSslCertificates',
+			itemIndex,
+			false,
+		);
+		if (provideSslCertificates) {
+			try {
+				const raw = await this.getCredentials('openAiSslAuth');
+				if (raw.cert || raw.key || raw.ca) {
+					tlsCredentials = {
+						ca: typeof raw.ca === 'string' && raw.ca ? normalizePem(raw.ca) : undefined,
+						cert: typeof raw.cert === 'string' && raw.cert ? normalizePem(raw.cert) : undefined,
+						key: typeof raw.key === 'string' && raw.key ? normalizePem(raw.key) : undefined,
+						passphrase:
+							typeof raw.passphrase === 'string' && raw.passphrase ? raw.passphrase : undefined,
+					};
+				}
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : String(error);
+				if (!msg.includes('not found') && !msg.includes('not require')) {
+					this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
+				}
 			}
 		}
 
@@ -825,12 +844,7 @@ export class LmChatOpenAi implements INodeType {
 			'baseURL',
 		]);
 
-		// When using mTLS-only authentication, an API key may not be present.
-		// Pass a placeholder so the OpenAI SDK constructor does not throw.
-		const apiKey =
-			typeof credentials.apiKey === 'string' && credentials.apiKey
-				? credentials.apiKey
-				: 'n8n-mtls';
+		const apiKey = typeof credentials.apiKey === 'string' ? credentials.apiKey : '';
 
 		const fields: ChatOpenAIFields = {
 			apiKey,

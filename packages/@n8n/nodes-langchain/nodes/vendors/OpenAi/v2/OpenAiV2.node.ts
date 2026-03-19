@@ -37,7 +37,12 @@ export class OpenAiV2 implements INodeType {
 				{
 					// eslint-disable-next-line n8n-nodes-base/node-class-description-credentials-name-unsuffixed
 					name: 'openAiSslAuth',
-					required: false,
+					required: true,
+					displayOptions: {
+						show: {
+							provideSslCertificates: [true],
+						},
+					},
 				},
 			],
 			properties: [
@@ -85,6 +90,13 @@ export class OpenAiV2 implements INodeType {
 				...text.description,
 				...conversation.description,
 				...video.description,
+				{
+					displayName: 'SSL Certificates',
+					name: 'provideSslCertificates',
+					type: 'boolean',
+					default: false,
+					isNodeSetting: true,
+				},
 			],
 		};
 	}

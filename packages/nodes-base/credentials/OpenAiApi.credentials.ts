@@ -19,9 +19,8 @@ export class OpenAiApi implements ICredentialType {
 			name: 'apiKey',
 			type: 'string',
 			typeOptions: { password: true },
+			required: true,
 			default: '',
-			description:
-				'API key for authenticating requests. Leave empty when using mTLS client certificates as the sole authentication mechanism.',
 		},
 		{
 			displayName: 'Organization ID (optional)',
@@ -85,9 +84,7 @@ export class OpenAiApi implements ICredentialType {
 	): Promise<IHttpRequestOptions> {
 		requestOptions.headers ??= {};
 
-		if (credentials.apiKey) {
-			requestOptions.headers['Authorization'] = `Bearer ${credentials.apiKey}`;
-		}
+		requestOptions.headers['Authorization'] = `Bearer ${credentials.apiKey}`;
 		requestOptions.headers['OpenAI-Organization'] = credentials.organizationId;
 
 		if (

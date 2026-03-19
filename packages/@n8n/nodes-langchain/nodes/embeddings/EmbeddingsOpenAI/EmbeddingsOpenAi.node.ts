@@ -250,14 +250,18 @@ export class EmbeddingsOpenAi implements INodeType {
 			const raw = await this.getCredentials('openAiSslAuth');
 			if (raw.cert || raw.key || raw.ca) {
 				tlsCredentials = {
-					ca: raw.ca ? normalizePem(raw.ca as string) : undefined,
-					cert: raw.cert ? normalizePem(raw.cert as string) : undefined,
-					key: raw.key ? normalizePem(raw.key as string) : undefined,
-					passphrase: (raw.passphrase as string) || undefined,
+					ca: typeof raw.ca === 'string' && raw.ca ? normalizePem(raw.ca) : undefined,
+					cert: typeof raw.cert === 'string' && raw.cert ? normalizePem(raw.cert) : undefined,
+					key: typeof raw.key === 'string' && raw.key ? normalizePem(raw.key) : undefined,
+					passphrase:
+						typeof raw.passphrase === 'string' && raw.passphrase ? raw.passphrase : undefined,
 				};
 			}
-		} catch {
-			// Optional credential — not configured
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			if (!msg.includes('not found') && !msg.includes('not require')) {
+				this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
+			}
 		}
 
 		const options = this.getNodeParameter('options', itemIndex, {}) as {
@@ -302,7 +306,10 @@ export class EmbeddingsOpenAi implements INodeType {
 
 		// When using mTLS-only authentication, an API key may not be present.
 		// Pass a placeholder so the OpenAI SDK constructor does not throw.
-		const apiKey = (credentials.apiKey as string) || 'n8n-mtls';
+		const apiKey =
+			typeof credentials.apiKey === 'string' && credentials.apiKey
+				? credentials.apiKey
+				: 'n8n-mtls';
 
 		const embeddings = new OpenAIEmbeddings({
 			model: this.getNodeParameter('model', itemIndex, 'text-embedding-3-small') as string,

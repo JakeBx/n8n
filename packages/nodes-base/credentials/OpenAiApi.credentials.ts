@@ -85,7 +85,9 @@ export class OpenAiApi implements ICredentialType {
 	): Promise<IHttpRequestOptions> {
 		requestOptions.headers ??= {};
 
-		requestOptions.headers['Authorization'] = `Bearer ${credentials.apiKey}`;
+		if (credentials.apiKey) {
+			requestOptions.headers['Authorization'] = `Bearer ${credentials.apiKey}`;
+		}
 		requestOptions.headers['OpenAI-Organization'] = credentials.organizationId;
 
 		if (

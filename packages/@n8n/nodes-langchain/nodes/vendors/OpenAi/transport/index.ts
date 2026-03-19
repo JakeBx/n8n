@@ -70,14 +70,29 @@ export async function apiRequest(
 		const sslCredentials = await this.getCredentials('openAiSslAuth');
 		if (sslCredentials.cert || sslCredentials.key || sslCredentials.ca) {
 			options.agentOptions = {
-				ca: sslCredentials.ca ? normalizePem(sslCredentials.ca as string) : undefined,
-				cert: sslCredentials.cert ? normalizePem(sslCredentials.cert as string) : undefined,
-				key: sslCredentials.key ? normalizePem(sslCredentials.key as string) : undefined,
-				passphrase: (sslCredentials.passphrase as string) || undefined,
+				ca:
+					typeof sslCredentials.ca === 'string' && sslCredentials.ca
+						? normalizePem(sslCredentials.ca)
+						: undefined,
+				cert:
+					typeof sslCredentials.cert === 'string' && sslCredentials.cert
+						? normalizePem(sslCredentials.cert)
+						: undefined,
+				key:
+					typeof sslCredentials.key === 'string' && sslCredentials.key
+						? normalizePem(sslCredentials.key)
+						: undefined,
+				passphrase:
+					typeof sslCredentials.passphrase === 'string' && sslCredentials.passphrase
+						? sslCredentials.passphrase
+						: undefined,
 			};
 		}
-	} catch {
-		// Optional credential — not configured
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		if (!msg.includes('not found') && !msg.includes('not require')) {
+			this.logger.warn('Unexpected error fetching openAiSslAuth credential', { error: msg });
+		}
 	}
 
 	if (option && Object.keys(option).length !== 0) {

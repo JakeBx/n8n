@@ -738,12 +738,10 @@ export class LmChatOpenAi implements INodeType {
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		const credentials = await this.getCredentials('openAiApi');
 
-		let tlsCredentials:
-			| { ca?: string; cert?: string; key?: string; passphrase?: string }
-			| undefined;
+		let tlsOptions: TlsOptions | undefined;
 		if (credentials.sslCertificatesEnabled) {
 			if (credentials.cert || credentials.key || credentials.ca) {
-				tlsCredentials = {
+				tlsOptions = {
 					ca:
 						typeof credentials.ca === 'string' && credentials.ca
 							? normalizePem(credentials.ca)
@@ -788,7 +786,6 @@ export class LmChatOpenAi implements INodeType {
 		}
 
 		const timeout = options.timeout;
-		const tlsOptions: TlsOptions | undefined = tlsCredentials;
 		const dispatcher = getProxyAgent(
 			configuration.baseURL ?? 'https://api.openai.com/v1',
 			{

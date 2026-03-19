@@ -238,12 +238,10 @@ export class EmbeddingsOpenAi implements INodeType {
 		this.logger.debug('Supply data for embeddings');
 		const credentials = await this.getCredentials('openAiApi');
 
-		let tlsCredentials:
-			| { ca?: string; cert?: string; key?: string; passphrase?: string }
-			| undefined;
+		let tlsOptions: TlsOptions | undefined;
 		if (credentials.sslCertificatesEnabled) {
 			if (credentials.cert || credentials.key || credentials.ca) {
-				tlsCredentials = {
+				tlsOptions = {
 					ca:
 						typeof credentials.ca === 'string' && credentials.ca
 							? normalizePem(credentials.ca)
@@ -288,8 +286,6 @@ export class EmbeddingsOpenAi implements INodeType {
 		} else if (credentials.url) {
 			configuration.baseURL = credentials.url as string;
 		}
-
-		const tlsOptions: TlsOptions | undefined = tlsCredentials;
 
 		configuration.fetchOptions = {
 			dispatcher: getProxyAgent(

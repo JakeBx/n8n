@@ -12,8 +12,13 @@ import {
 import type { ClientOptions } from 'openai';
 
 import { checkDomainRestrictions } from '@utils/checkDomainRestrictions';
-import { mergeCustomHeaders } from '@utils/helpers';
-import { getProxyAgent, logWrapper, getConnectionHintNoticeField } from '@n8n/ai-utilities';
+import { mergeCustomHeaders, normalizePem } from '@utils/helpers';
+import {
+	getProxyAgent,
+	logWrapper,
+	getConnectionHintNoticeField,
+	type TlsOptions,
+} from '@n8n/ai-utilities';
 
 const modelParameter: INodeProperties = {
 	displayName: 'Model',
@@ -83,6 +88,11 @@ export class EmbeddingsOpenAi implements INodeType {
 			{
 				name: 'openAiApi',
 				required: true,
+			},
+			{
+				// eslint-disable-next-line n8n-nodes-base/node-class-description-credentials-name-unsuffixed
+				name: 'openAiSslAuth',
+				required: false,
 			},
 		],
 		group: ['transform'],
@@ -233,6 +243,23 @@ export class EmbeddingsOpenAi implements INodeType {
 		this.logger.debug('Supply data for embeddings');
 		const credentials = await this.getCredentials('openAiApi');
 
+		let tlsCredentials:
+			| { ca?: string; cert?: string; key?: string; passphrase?: string }
+			| undefined;
+		try {
+			const raw = await this.getCredentials('openAiSslAuth');
+			if (raw.cert || raw.key || raw.ca) {
+				tlsCredentials = {
+					ca: raw.ca ? normalizePem(raw.ca as string) : undefined,
+					cert: raw.cert ? normalizePem(raw.cert as string) : undefined,
+					key: raw.key ? normalizePem(raw.key as string) : undefined,
+					passphrase: (raw.passphrase as string) || undefined,
+				};
+			}
+		} catch {
+			// Optional credential — not configured
+		}
+
 		const options = this.getNodeParameter('options', itemIndex, {}) as {
 			baseURL?: string;
 			batchSize?: number;
@@ -258,8 +285,14 @@ export class EmbeddingsOpenAi implements INodeType {
 			configuration.baseURL = credentials.url as string;
 		}
 
+		const tlsOptions: TlsOptions | undefined = tlsCredentials;
+
 		configuration.fetchOptions = {
-			dispatcher: getProxyAgent(configuration.baseURL ?? 'https://api.openai.com/v1', {}),
+			dispatcher: getProxyAgent(
+				configuration.baseURL ?? 'https://api.openai.com/v1',
+				{},
+				tlsOptions,
+			),
 		};
 
 		configuration.defaultHeaders = mergeCustomHeaders(
@@ -267,9 +300,13 @@ export class EmbeddingsOpenAi implements INodeType {
 			(configuration.defaultHeaders ?? {}) as Record<string, string>,
 		);
 
+		// When using mTLS-only authentication, an API key may not be present.
+		// Pass a placeholder so the OpenAI SDK constructor does not throw.
+		const apiKey = (credentials.apiKey as string) || 'n8n-mtls';
+
 		const embeddings = new OpenAIEmbeddings({
 			model: this.getNodeParameter('model', itemIndex, 'text-embedding-3-small') as string,
-			apiKey: credentials.apiKey as string,
+			apiKey,
 			...options,
 			configuration,
 		});

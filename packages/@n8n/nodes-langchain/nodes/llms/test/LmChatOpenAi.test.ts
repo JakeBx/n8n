@@ -81,6 +81,10 @@ describe('LmChatOpenAi', () => {
 					name: 'openAiApi',
 					required: true,
 				},
+				{
+					name: 'openAiSslAuth',
+					required: false,
+				},
 			]);
 		});
 
@@ -592,6 +596,97 @@ describe('LmChatOpenAi', () => {
 			expect(instance).toBeDefined();
 			expect((instance as { metadata?: { tools?: unknown } }).metadata).toBeDefined();
 			expect((instance as { metadata?: { tools?: unknown } }).metadata?.tools).toEqual(mockTools);
+		});
+
+		it('should pass TLS options to getProxyAgent when openAiSslAuth credential is configured', async () => {
+			const mockContext = setupMockContext({ typeVersion: 1.2 });
+			const tlsCreds = {
+				ca: '-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----',
+				cert: '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----',
+				key: '-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----',
+				passphrase: 'secret',
+			};
+
+			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
+				if (credType === 'openAiApi') return { apiKey: 'test-api-key' };
+				if (credType === 'openAiSslAuth') return tlsCreds;
+				throw new Error(`Unknown credential type: ${credType}`);
+			});
+
+			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
+				if (paramName === 'model.value') return 'gpt-4o-mini';
+				if (paramName === 'responsesApiEnabled') return false;
+				if (paramName === 'options') return { timeout: 30000 };
+				return undefined;
+			});
+
+			await lmChatOpenAi.supplyData.call(mockContext, 0);
+
+			expect(mockedGetProxyAgent).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ headersTimeout: 30000, bodyTimeout: 30000 }),
+				expect.objectContaining({
+					ca: tlsCreds.ca,
+					cert: tlsCreds.cert,
+					key: tlsCreds.key,
+					passphrase: tlsCreds.passphrase,
+				}),
+			);
+		});
+
+		it('should use placeholder apiKey when openAiApi apiKey is empty and TLS is configured', async () => {
+			const mockContext = setupMockContext({ typeVersion: 1.2 });
+
+			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
+				if (credType === 'openAiApi') return { apiKey: '' };
+				if (credType === 'openAiSslAuth')
+					return {
+						cert: '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----',
+						key: '-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----',
+					};
+				throw new Error(`Unknown credential type: ${credType}`);
+			});
+
+			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
+				if (paramName === 'model.value') return 'gpt-4o-mini';
+				if (paramName === 'responsesApiEnabled') return false;
+				if (paramName === 'options') return {};
+				return undefined;
+			});
+
+			await lmChatOpenAi.supplyData.call(mockContext, 0);
+
+			expect(MockedChatOpenAI).toHaveBeenCalledWith(
+				expect.objectContaining({ apiKey: 'n8n-mtls' }),
+			);
+		});
+
+		it('should not pass TLS options when openAiSslAuth credential is not configured', async () => {
+			const mockContext = setupMockContext({ typeVersion: 1.2 });
+
+			mockContext.getCredentials = jest.fn().mockImplementation(async (credType: string) => {
+				if (credType === 'openAiApi') return { apiKey: 'test-api-key' };
+				throw new Error(
+					credType === 'openAiSslAuth'
+						? 'Credential not found'
+						: `Unknown credential type: ${credType}`,
+				);
+			});
+
+			mockContext.getNodeParameter = jest.fn().mockImplementation((paramName: string) => {
+				if (paramName === 'model.value') return 'gpt-4o-mini';
+				if (paramName === 'responsesApiEnabled') return false;
+				if (paramName === 'options') return {};
+				return undefined;
+			});
+
+			await lmChatOpenAi.supplyData.call(mockContext, 0);
+
+			expect(mockedGetProxyAgent).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.any(Object),
+				undefined,
+			);
 		});
 	});
 });

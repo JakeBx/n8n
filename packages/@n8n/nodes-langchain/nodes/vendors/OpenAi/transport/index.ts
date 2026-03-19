@@ -4,6 +4,9 @@ import type {
 	IHttpRequestMethods,
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
+
+import { normalizePem } from '@utils/helpers';
+
 type RequestParameters = {
 	headers?: IDataObject;
 	body?: IDataObject | string;
@@ -40,7 +43,20 @@ export async function apiRequest(
 		};
 	}
 
-	const options = {
+	const options: IDataObject & {
+		headers: IDataObject;
+		method: IHttpRequestMethods;
+		body?: IDataObject | string;
+		qs?: IDataObject;
+		uri: string;
+		json: boolean;
+		agentOptions?: {
+			ca?: string;
+			cert?: string;
+			key?: string;
+			passphrase?: string;
+		};
+	} = {
 		headers,
 		method,
 		body,
@@ -48,6 +64,21 @@ export async function apiRequest(
 		uri,
 		json: true,
 	};
+
+	// Apply TLS client certificates when configured
+	try {
+		const sslCredentials = await this.getCredentials('openAiSslAuth');
+		if (sslCredentials.cert || sslCredentials.key || sslCredentials.ca) {
+			options.agentOptions = {
+				ca: sslCredentials.ca ? normalizePem(sslCredentials.ca as string) : undefined,
+				cert: sslCredentials.cert ? normalizePem(sslCredentials.cert as string) : undefined,
+				key: sslCredentials.key ? normalizePem(sslCredentials.key as string) : undefined,
+				passphrase: (sslCredentials.passphrase as string) || undefined,
+			};
+		}
+	} catch {
+		// Optional credential — not configured
+	}
 
 	if (option && Object.keys(option).length !== 0) {
 		Object.assign(options, option);

@@ -11,7 +11,7 @@ import {
 } from 'n8n-workflow';
 
 import { checkDomainRestrictions } from '@utils/checkDomainRestrictions';
-import { mergeCustomHeaders } from '@utils/helpers';
+import { mergeCustomHeaders, normalizePem } from '@utils/helpers';
 
 import { openAiFailedAttemptHandler } from '../../vendors/OpenAi/helpers/error-handling';
 import {
@@ -19,6 +19,7 @@ import {
 	N8nLlmTracing,
 	getProxyAgent,
 	getConnectionHintNoticeField,
+	type TlsOptions,
 } from '@n8n/ai-utilities';
 import { formatBuiltInTools, prepareAdditionalResponsesParams } from './common';
 import { searchModels } from './methods/loadModels';
@@ -106,6 +107,11 @@ export class LmChatOpenAi implements INodeType {
 			{
 				name: 'openAiApi',
 				required: true,
+			},
+			{
+				// eslint-disable-next-line n8n-nodes-base/node-class-description-credentials-name-unsuffixed
+				name: 'openAiSslAuth',
+				required: false,
 			},
 		],
 		requestDefaults: {
@@ -737,6 +743,23 @@ export class LmChatOpenAi implements INodeType {
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		const credentials = await this.getCredentials('openAiApi');
 
+		let tlsCredentials:
+			| { ca?: string; cert?: string; key?: string; passphrase?: string }
+			| undefined;
+		try {
+			const raw = await this.getCredentials('openAiSslAuth');
+			if (raw.cert || raw.key || raw.ca) {
+				tlsCredentials = {
+					ca: raw.ca ? normalizePem(raw.ca as string) : undefined,
+					cert: raw.cert ? normalizePem(raw.cert as string) : undefined,
+					key: raw.key ? normalizePem(raw.key as string) : undefined,
+					passphrase: (raw.passphrase as string) || undefined,
+				};
+			}
+		} catch {
+			// Optional credential — not configured
+		}
+
 		const version = this.getNode().typeVersion;
 		const modelName =
 			version >= 1.2
@@ -761,11 +784,16 @@ export class LmChatOpenAi implements INodeType {
 		}
 
 		const timeout = options.timeout;
+		const tlsOptions: TlsOptions | undefined = tlsCredentials;
 		configuration.fetchOptions = {
-			dispatcher: getProxyAgent(configuration.baseURL ?? 'https://api.openai.com/v1', {
-				headersTimeout: timeout,
-				bodyTimeout: timeout,
-			}),
+			dispatcher: getProxyAgent(
+				configuration.baseURL ?? 'https://api.openai.com/v1',
+				{
+					headersTimeout: timeout,
+					bodyTimeout: timeout,
+				},
+				tlsOptions,
+			),
 		};
 		configuration.defaultHeaders = mergeCustomHeaders(
 			credentials,
@@ -793,8 +821,12 @@ export class LmChatOpenAi implements INodeType {
 			'baseURL',
 		]);
 
+		// When using mTLS-only authentication, an API key may not be present.
+		// Pass a placeholder so the OpenAI SDK constructor does not throw.
+		const apiKey = (credentials.apiKey as string) || 'n8n-mtls';
+
 		const fields: ChatOpenAIFields = {
-			apiKey: credentials.apiKey as string,
+			apiKey,
 			model: modelName,
 			...includedOptions,
 			timeout,

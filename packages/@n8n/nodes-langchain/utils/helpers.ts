@@ -248,6 +248,21 @@ export function mergeCustomHeaders(
 }
 
 /**
+ * Normalises a PEM-encoded certificate or private key string.
+ *
+ * Credentials stored in n8n may contain literal `\n` escape sequences instead of
+ * actual newline characters. This function converts those escape sequences to real
+ * newlines so that TLS libraries (undici, Node.js tls) can parse the PEM data correctly.
+ *
+ * Returns an empty string unchanged so callers can safely filter out empty fields.
+ */
+export function normalizePem(input: string): string {
+	if (!input) return input;
+	// Replace literal backslash-n with actual newline if not already normalised
+	return input.includes('\\n') ? input.replace(/\\n/g, '\n') : input;
+}
+
+/**
  * Sometimes model output is wrapped in an additional object property.
  * This function unwraps the output if it is in the format { output: { output: { ... } } }
  */

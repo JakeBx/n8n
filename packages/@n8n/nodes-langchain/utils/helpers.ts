@@ -259,7 +259,25 @@ export function mergeCustomHeaders(
 export function normalizePem(input: string): string {
 	if (!input) return input;
 	// Replace literal backslash-n with actual newline if not already normalised
-	return input.includes('\\n') ? input.replace(/\\n/g, '\n') : input;
+	if (input.includes('\\n')) return input.replace(/\\n/g, '\n');
+	// If the PEM already has real newlines, return as-is
+	if (input.includes('\n')) return input;
+	// Space-separated PEM: the credential was stored with spaces replacing all newlines.
+	// Reconstruct proper PEM by stripping whitespace from the base64 body and
+	// re-wrapping to 64-char lines so OpenSSL can parse it correctly.
+	if (input.includes('-----BEGIN')) {
+		const match = input.match(
+			/^(-----BEGIN[\w\s]+-----)\s+([\w+/=\s]+?)\s*(-----END[\w\s]+-----)$/,
+		);
+		if (match) {
+			const header = match[1];
+			const b64 = match[2].replace(/\s/g, '');
+			const footer = match[3];
+			const lines = b64.match(/.{1,64}/g) ?? [];
+			return [header, ...lines, footer].join('\n');
+		}
+	}
+	return input;
 }
 
 /**

@@ -83,12 +83,7 @@ describe('LmChatOpenAi', () => {
 				},
 				{
 					name: 'openAiSslAuth',
-					required: true,
-					displayOptions: {
-						show: {
-							provideSslCertificates: [true],
-						},
-					},
+					required: false,
 				},
 			]);
 		});
